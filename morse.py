@@ -1,3 +1,8 @@
+from gpiozero import LightSensor
+import datetime
+import time
+import RPi.GPIO as GPIO
+
 class MorseConverter(object):
 	def __init__ (self):
 		self.lettertocode = {
@@ -36,103 +41,181 @@ class MorseConverter(object):
 			"7": "--...",
 			"8": "---..",
 			"9": "----.",
-			"0": "-----"
+			"0": "-----",
+			" ": "   "
 		}
 		
-		self.codetoletter = {v: k for k, v in self.lettertocode.iteritems()}
+		self.codetoletter = {v: k for k, v in self.lettertocode.items()}
 		
 		self.chars = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
 				 "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
 				 "W", "X", "Y", "Z", "1", "2", "3", "4", "5", "6", "7",
 				 "8", "9", "0", " "]
-		
+
+		self.letter = ""
+		self.morseCode = ""
+		self.laserPin = 0
+		self.ldrPin = 0
+		self.brightness = 0.0
+		self.ldr = None
+		self.started = False
+		self.dotTime = 0.0
+		self.hyphenTime = 0.0
+		self.spaceTime = 0.0
+
 	def textToMorse(self, text):
-		self.text = text.upper()
-		self.morse = ""
+		self.letter = text.upper()
+		self.morseCode = ""
+
+		if self.letter not in self.chars:
+			print ("Error: Not a valid character")
+			exit()
+
+		self.morseCode += self.lettertocode[self.letter]
 		
-		for ch in self.text:
-			if ch not in self.chars:
-				self.text = self.text.replace(ch, "")
-		
-		for ch in self.text:
-			if ch == " ":
-				continue
-			else:
-				self.morse += self.lettertocode[ch]
-			self.morse += " "
-		
-		return self.morse.replace("   ", "|")
+		return self.morseCode
 		
 	def morseToText(self, text):
-		self.letters = ""
-		self.text = text
-		self.text = self.text.split("   ")
+		self.letter = ""
+		self.morseCode = text
 		
-		for item in self.text:
-			item = str(item)
-			item = item.split(" ")
-			for letter in item:
-				self.letters += self.codetoletter[letter]
-			self.letters += " "
+		self.letter += self.codetoletter[self.morseCode]
 		
-		return self.letters
+		return self.letter
 		
 
-class Sender(object):
+	# SENDER
 	# Takes the TXT given to it and find then length and turns it it into binary
-	def lengthToBinary(message):
+	def lengthToBinary(self, message):
 		message = len(message)
 		length = '{0:08b}'.format(message)
 		length = str(length)
 		print('length of message: ', message)
 		return length
-		
-	# Get the time when the length will be sent
-	def sendLengthTime():
-		now = datetime.datetime.now()
-		start1 = now + datetime.timedelta(minutes=1)
-		start1 = start1.strftime("%H:%M")
-		print(now)
-		print('Start1: ', start1)
-		return start1
-	
-	# Get the time when the message will be sent
-	def sendMessageTime():
-		now = datetime.datetime.now()
-		start2 = now + datetime.timedelta(minutes=2)
-		start2 = start2.strftime("%H:%M")
-		print('Start2: ', start2)
-		return start2
-		
-	# Get the current time
-	def currentTime():
-		return datetime.datetime.now().strftime("%H:%M")
-		
 
-class Receiver(object):
+	def setup_laser(self, pin):
+		self.laserPin = pin
+
+		GPIO.setmode(GPIO.BCM)
+		GPIO.setup(self.laserPin, GPIO.OUT)
+		GPIO.output(self.laserPin, 0)
+
+	def send_length(self, binary_length, multiplier):
+		print ("Sending length")
+
+		for ch in binary_length:
+			if ch == '1':
+				print ('1')
+				GPIO.output(self.laserPin, 1)
+				time.sleep(0.5 * multiplier)
+				GPIO.output(self.laserPin, 0)
+			elif ch == '0':
+				print ('0')
+				time.sleep(0.5 * multiplier)
+			else:
+				continue
+
+		GPIO.output(self.laserPin, 0)
+
+	def send_message(self, morse, multiplier):
+		print ("Sending morse: " + morse)
+
+		if morse == "   ":
+			print ("Space")
+			time.sleep(0.75 * multiplier)
+			GPIO.output(self.laserPin, 1)
+			time.sleep(0.5 * multiplier)
+			GPIO.output(self.laserPin, 0)
+		else:
+			for ch in morse:
+				if ch == ".":
+					print (".")
+					GPIO.output(self.laserPin, 1)
+					time.sleep(0.25 * multiplier)
+					GPIO.output(self.laserPin, 0)
+					time.sleep(0.5 * multiplier)
+				elif ch == "-":
+					print ("-")
+					GPIO.output(self.laserPin, 1)
+					time.sleep(0.75 * multiplier)
+					GPIO.output(self.laserPin, 0)
+					time.sleep(0.5 * multiplier)
+
+	def send(self, char, multiplier=1):
+		morse_txt = self.textToMorse(char)
+		morse_length = self.lengthToBinary(morse_txt)
+		print (morse_txt)
+
+		print ("The message will be sent in 3 seconds")
+		time.sleep(3)
+
+		GPIO.output(self.laserPin, 1)
+		time.sleep(5)
+		GPIO.output(self.laserPin, 0)
+
+		self.send_length(morse_length, multiplier)
+		time.sleep(1 * multiplier)
+		self.send_message(morse_txt, multiplier)
+		time.sleep(1 * multiplier)
+
+	# RECEIVER
 	# convert binary to length
 	def message_length(integer):
 		toint = int(integer, 2)
 		return toint*8
-	
-	# Get the time when the length will be sent
-	def receiveLengthTime():
-		now = datetime.datetime.now()
-		start1 = now + datetime.timedelta(minutes=1)
-		start1 = start1.strftime("%H:%M")
-		print(now)
-		print('Start1: ', start1)
-		return start1
-	
-	# Get the time when the message will be sent
-	def receiveMessageTime():
-		now = datetime.datetime.now()
-		start2 = now + datetime.timedelta(minutes=2)
-		start2 = start2.strftime("%H:%M")
-		print('Start2: ', start2)
-		return start2
 		
-	# Get the current time
-	def currentTime():
-		return datetime.datetime.now().strftime("%H:%M")
+	def setup_ldr(self, pin):
+		self.ldrPin = pin
+		self.ldr = LightSensor(self.ldrPin)
 		
+	def get_char(self, brightness=0.5, multiplier=1):
+		self.dotTime = datetime.timedelta(seconds=int(0.3 * multiplier), microseconds=(1000000 * float("0." + str(str((0.3 * multiplier) - int(0.3 * multiplier))[2:]))))
+		self.hyphenTime = datetime.timedelta(seconds=int(0.8 * multiplier), microseconds=(1000000 * float("0." + str(str((0.8 * multiplier) - int(0.8 * multiplier))[2:]))))
+		self.spaceTime = self.hyphenTime
+		self.brightness = brightness
+		
+		while not (self.ldr.value > self.brightness):
+			if self.ldr.value > self.brightness and not self.started:
+				self.started = True
+			elif self.ldr.value > self.brightness and self.started:
+				continue
+			elif self.ldr.value < self.brightness and not self.started:
+				continue
+				
+		receiveBin = ""
+		while len(receiveBin) != 8:
+			if self.ldr.value > self.brightness:
+				receiveBin += "1"
+				time.sleep(0.5 * multiplier)
+			elif self.ldr.value < self.brightness:
+				receiveBin += "0"
+				time.sleep(0.5 * multiplier)
+		print (receiveBin)
+		receiveLen = self.message_length(receiveBin)
+		print (receiveLen)
+		
+		time.sleep(1 * multiplier)
+		
+		receiveMorse = ""
+		while len(receiveMorse) != receiveLen:
+			time1 = datetime.datetime.now()
+			if self.ldr.value > self.brightness:
+				while True:
+					if self.ldr.value < self.brightness:
+						time2 = datetime.datetime.now()
+						if (time2 - time1) < self.dotTime:
+							receiveMorse += "."
+							break
+						elif (time2 - time1) < self.hyphenTime:
+							receiveMorse += "-"
+							break
+			elif self.ldr.value < self.brightness:
+				while True:
+					if self.ldr.value > self.brightness:
+						time2 = datetime.datetime.now()
+						if (time2 - time1) < self.spaceTime:
+							receiveMorse += "   "
+							break
+			time.sleep(0.5 * multiplier)
+		print ("The letter is: " + self.morseToText(receiveMorse))
+		time.sleep(1 * multiplier) 
