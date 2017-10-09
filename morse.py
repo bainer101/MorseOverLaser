@@ -120,7 +120,7 @@ class MorseConverter(object):
 					#GPIO.output(self.laserPin, 0)
 					#time.sleep(0.5 * multiplier)
 					GPIO.output(self.laserPin, 1)
-					time.sleep(5)
+					time.sleep(5 * multiplier)
 					GPIO.output(self.laserPin, 0)
 					time.sleep(3)
 				elif ch == "-":
@@ -130,12 +130,12 @@ class MorseConverter(object):
 					#GPIO.output(self.laserPin, 0)
 					#time.sleep(0.5 * multiplier)
 					GPIO.output(self.laserPin, 1)
-					time.sleep(10)
+					time.sleep(10 * multiplier)
 					GPIO.output(self.laserPin, 0)
 					time.sleep(3)
 		
 		GPIO.output(self.laserPin, 1)
-		time.sleep(15)
+		time.sleep(15 * multiplier)
 		GPIO.output(self.laserPin, 0)
 
 	def send(self, char, multiplier=1):
@@ -194,15 +194,15 @@ class MorseConverter(object):
 				while True:
 					if explorerhat.analog.one.read() < self.brightness:
 						time2 = datetime.datetime.now()
-						if (time2 - time1) < datetime.timedelta(seconds=7):
+						if (time2 - time1) < datetime.timedelta(seconds=(7 * multiplier)):
 							print (".")
 							receiveMorse += "."
 							break
-						elif (time2 - time1) < datetime.timedelta(seconds=12):
+						elif (time2 - time1) < datetime.timedelta(seconds=(12 * multiplier)):
 							print ("-")
 							receiveMorse += "-"
 							break
-						elif (time2 - time1) < datetime.timedelta(seconds=17):
+						elif (time2 - time1) < datetime.timedelta(seconds=17 * multiplier):
 							print ("END")
 							sending = False
 							break
