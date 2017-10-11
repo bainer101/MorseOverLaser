@@ -1,5 +1,5 @@
 import morse
 ml = morse.MorseConverter()
 
-ml.setup_ldr()
-ml.get_char(0.7, 3)
+ml.setup_ldr(3)
+ml.get_char(0.7)
