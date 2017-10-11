@@ -211,5 +211,8 @@ class MorseConverter(object):
 							sending = False
 							break
 			time.sleep(0.5 * multiplier) 
-		print ("The letter is: " + self.morseToText(receiveMorse))
+		if (self.morseToText(receiveMorse) == " "):
+			print ("The letter is: SPACE")
+		else:
+			print ("The letter is: " + self.morseToText(receiveMorse))
 		time.sleep(1 * multiplier) 
