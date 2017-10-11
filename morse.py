@@ -46,7 +46,8 @@ class MorseConverter(object):
 			"7": "--...",
 			"8": "---..",
 			"9": "----.",
-			"0": "-----"
+			"0": "-----",
+			" ": "   "
 		}
 		
 		self.codetoletter = {v: k for k, v in self.lettertocode.items()}
@@ -54,7 +55,7 @@ class MorseConverter(object):
 		self.chars = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
 				 "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
 				 "W", "X", "Y", "Z", "1", "2", "3", "4", "5", "6", "7",
-				 "8", "9", "0"]
+				 "8", "9", "0", " "]
 
 		self.letter = ""
 		self.morseCode = ""
@@ -66,6 +67,7 @@ class MorseConverter(object):
 		self.dotTime = 0.0
 		self.hyphenTime = 0.0
 		self.spaceTime = 0.0
+		self.multiplier = 0.0
 
 	def textToMorse(self, text):
 		self.letter = text.upper()
@@ -90,7 +92,8 @@ class MorseConverter(object):
 
 	# SENDER
 	# Takes the TXT given to it and find then length and turns it it into binary
-	def setup_laser(self, pin):
+	def setup_laser(self, pin, multiplier=1):
+		self.multiplier = multiplier
 		self.laserPin = pin
 
 		GPIO.setmode(GPIO.BCM)
@@ -102,15 +105,15 @@ class MorseConverter(object):
 		GPIO.output(self.laserPin, 0)
 		input("Press enter when the laser says its searching for the light")
 
-	def send_message(self, morse, multiplier):
+	def send_message(self, morse):
 		print ("Sending morse: " + morse)
 
 		if morse == "   ":
 			print ("Space")
-			time.sleep(0.75 * multiplier)
 			GPIO.output(self.laserPin, 1)
-			time.sleep(0.5 * multiplier)
+			time.sleep(12 * self.multiplier)
 			GPIO.output(self.laserPin, 0)
+			time.sleep(3)
 		else:
 			for ch in morse:
 				if ch == ".":
@@ -120,7 +123,7 @@ class MorseConverter(object):
 					#GPIO.output(self.laserPin, 0)
 					#time.sleep(0.5 * multiplier)
 					GPIO.output(self.laserPin, 1)
-					time.sleep(5 * multiplier)
+					time.sleep(4 * self.multiplier)
 					GPIO.output(self.laserPin, 0)
 					time.sleep(3)
 				elif ch == "-":
@@ -130,15 +133,15 @@ class MorseConverter(object):
 					#GPIO.output(self.laserPin, 0)
 					#time.sleep(0.5 * multiplier)
 					GPIO.output(self.laserPin, 1)
-					time.sleep(10 * multiplier)
+					time.sleep(8 * self.multiplier)
 					GPIO.output(self.laserPin, 0)
 					time.sleep(3)
 		
 		GPIO.output(self.laserPin, 1)
-		time.sleep(15 * multiplier)
+		time.sleep(16 * self.multiplier)
 		GPIO.output(self.laserPin, 0)
 
-	def send(self, char, multiplier=1):
+	def send(self, char):
 		morse_txt = self.textToMorse(char)
 		print (morse_txt)
 
@@ -151,15 +154,16 @@ class MorseConverter(object):
 
 		time.sleep(5)
 
-		self.send_message(morse_txt, multiplier)
+		self.send_message(morse_txt)
 		GPIO.output(self.laserPin, 0)		
-		time.sleep(1 * multiplier)
+		time.sleep(1 * self.multiplier)
 
 	# RECEIVER
 	# convert binary to length
-	def setup_ldr(self):
-		answer = ""
+	def setup_ldr(self, multiplier=1):
+		self.multiplier = multiplier
 		
+		answer = ""
 		while answer != "n":
 			answer = input("Would you like to check the brightness? (y/n) ")
 			
@@ -168,11 +172,7 @@ class MorseConverter(object):
 			elif answer != "y" and answer != "n":
 				continue
 		
-	def get_char(self, brightness=0.5, multiplier=1):
-		self.dotTime = datetime.timedelta(seconds=int(0.3 * multiplier), microseconds=(1000000 * float("0." + str(str((0.3 * multiplier) - int(0.3 * multiplier))[2:]))))
-		self.hyphenTime = datetime.timedelta(seconds=int(0.8 * multiplier), microseconds=(1000000 * float("0." + str(str((0.8 * multiplier) - int(0.8 * multiplier))[2:]))))
-		self.spaceTime = self.hyphenTime
-		self.endTime = datetime.timedelta(seconds=6)
+	def get_char(self, brightness=0.5):
 		self.brightness = brightness
 		
 		while not (explorerhat.analog.one.read() > self.brightness and self.started):
@@ -194,15 +194,19 @@ class MorseConverter(object):
 				while True:
 					if explorerhat.analog.one.read() < self.brightness:
 						time2 = datetime.datetime.now()
-						if (time2 - time1) < datetime.timedelta(seconds=(7 * multiplier)):
+						if (time2 - time1) < datetime.timedelta(seconds=(6 * self.multiplier)):
 							print (".")
 							receiveMorse += "."
 							break
-						elif (time2 - time1) < datetime.timedelta(seconds=(12 * multiplier)):
+						elif (time2 - time1) < datetime.timedelta(seconds=(10 * self.multiplier)):
 							print ("-")
 							receiveMorse += "-"
 							break
-						elif (time2 - time1) < datetime.timedelta(seconds=17 * multiplier):
+						elif (time2 - time1) < datetime.timedelta(seconds=(14 * self.multiplier)):
+							print ("Space")
+							sending = False
+							break
+						elif (time2 - time1) < datetime.timedelta(seconds=(18 * self.multiplier)):
 							print ("END")
 							sending = False
 							break
