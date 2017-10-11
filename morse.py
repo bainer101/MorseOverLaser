@@ -212,7 +212,7 @@ class MorseConverter(object):
 							break
 			time.sleep(0.5 * multiplier) 
 		if (self.morseToText(receiveMorse) == " "):
-			print ("The letter is: SPACE")
+			print ("The character was: SPACE")
 		else:
-			print ("The letter is: " + self.morseToText(receiveMorse))
+			print ("The character was: " + self.morseToText(receiveMorse))
 		time.sleep(1 * multiplier) 
